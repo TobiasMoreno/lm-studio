@@ -169,11 +169,21 @@ import { FormsModule } from '@angular/forms';
 
         <!-- Grid de productos -->
         @if (filteredProducts().length > 0) {
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            @for (product of filteredProducts(); track product.id) {
-              <app-product-card [product]="product" />
-            }
-          </div>
+          <!-- Trigger para carga diferida -->
+          <div #productsTrigger class="h-1"></div>
+          @defer (on viewport(productsTrigger)) {
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              @for (product of filteredProducts(); track product.id) {
+                <app-product-card [product]="product" />
+              }
+            </div>
+          } @placeholder {
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              @for (placeholder of [1, 2, 3, 4, 5, 6, 7, 8]; track placeholder) {
+                <div class="bg-gray-200 animate-pulse rounded-lg aspect-3/4"></div>
+              }
+            </div>
+          }
         } @else {
           <div class="text-center py-12">
             <p class="text-gray-600 text-lg">No se encontraron productos con los filtros seleccionados.</p>
