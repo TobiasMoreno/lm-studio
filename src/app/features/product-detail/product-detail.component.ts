@@ -233,14 +233,23 @@ export class ProductDetailComponent {
       return;
     }
 
-    const message = `Hola! Quiero comprar la remera:
-- Modelo: ${productData.name}
-- Talle: ${size}
-- Color: ${color}
-- Cantidad: ${qty}`;
+    // Agregar al carrito y redirigir al carrito para seleccionar tipo de entrega
+    const cartItem: CartItem = {
+      productId: productData.id,
+      productName: productData.name,
+      price: productData.price,
+      size: size as 'S' | 'M' | 'L' | 'XL',
+      color: color,
+      image: productData.images[0],
+      quantity: qty
+    };
 
-    window.open(getWhatsAppUrl(message), '_blank');
+    this.cartService.addItem(cartItem);
+    this.showValidationError.set(false);
     this.showQuantityExceededError.set(false);
+    
+    // Redirigir al carrito
+    this.router.navigate(['/cart']);
   }
 
   private consultAvailability(): void {

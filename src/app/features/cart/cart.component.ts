@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { NgOptimizedImage } from '@angular/common';
@@ -8,6 +8,9 @@ import { CurrencyArsPipe } from '../../shared/pipes/currency-ars.pipe';
 import { getWhatsAppUrl } from '../../core/constants/whatsapp.constants';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { RadioButtonModule } from 'primeng/radiobutton';
+import { InputTextModule } from 'primeng/inputtext';
+import { MessageModule } from 'primeng/message';
 
 @Component({
   selector: 'app-cart',
@@ -18,7 +21,10 @@ import { InputNumberModule } from 'primeng/inputnumber';
     FormsModule,
     CurrencyArsPipe,
     ButtonModule,
-    InputNumberModule
+    InputNumberModule,
+    RadioButtonModule,
+    InputTextModule,
+    MessageModule
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -92,6 +98,62 @@ import { InputNumberModule } from 'primeng/inputnumber';
                   </div>
                 </div>
 
+                <!-- Tipo de entrega -->
+                <div class="mb-6">
+                  <h3 class="text-sm font-semibold text-gray-900 mb-3">Tipo de entrega</h3>
+                  <div class="space-y-3">
+                    <div class="flex items-center">
+                      <p-radioButton 
+                        inputId="retiro"
+                        value="retiro"
+                        [(ngModel)]="deliveryType"
+                        (ngModelChange)="onDeliveryTypeChange($event)"
+                        styleClass="mr-2">
+                      </p-radioButton>
+                      <label for="retiro" class="ml-2 text-gray-700 cursor-pointer">Retiro en local</label>
+                    </div>
+                    <div class="flex items-center">
+                      <p-radioButton 
+                        inputId="envio"
+                        value="envio"
+                        [(ngModel)]="deliveryType"
+                        (ngModelChange)="onDeliveryTypeChange($event)"
+                        styleClass="mr-2">
+                      </p-radioButton>
+                      <label for="envio" class="ml-2 text-gray-700 cursor-pointer">Envío a domicilio</label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Campo de dirección (solo si es envío) -->
+                @if (deliveryType === 'envio') {
+                  <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                      Dirección de envío <span class="text-red-500">*</span>
+                    </label>
+                    <div class="space-y-2">
+                      <input 
+                        type="text"
+                        pInputText
+                        [ngModel]="deliveryAddress()"
+                        (ngModelChange)="deliveryAddress.set($event)"
+                        placeholder="Ingresá tu dirección completa"
+                        class="w-full"
+                        [class.border-red-500]="showAddressError() && !deliveryAddress()">
+                      <button
+                        type="button"
+                        (click)="openGoogleMaps()"
+                        class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        <i class="pi pi-map-marker"></i>
+                        <span>Seleccionar ubicación en Google Maps</span>
+                      </button>
+                      @if (showAddressError() && !deliveryAddress) {
+                        <p-message severity="error" text="Por favor ingresá una dirección de envío" />
+                      }
+                    </div>
+                  </div>
+                }
+
                 <p-button 
                   label="Finalizar compra"
                   (onClick)="checkout()"
@@ -116,6 +178,10 @@ import { InputNumberModule } from 'primeng/inputnumber';
 export class CartComponent {
   cartService = inject(CartService);
 
+  deliveryType: 'retiro' | 'envio' | null = null;
+  deliveryAddress = signal<string>('');
+  showAddressError = signal(false);
+
   updateQuantity(item: any, quantity: number): void {
     this.cartService.updateQuantity(item.productId, item.size, item.color, quantity);
   }
@@ -124,7 +190,36 @@ export class CartComponent {
     this.cartService.removeItem(item.productId, item.size, item.color);
   }
 
+  onDeliveryTypeChange(type: 'retiro' | 'envio'): void {
+    this.deliveryType = type;
+    if (type === 'retiro') {
+      this.deliveryAddress.set('');
+      this.showAddressError.set(false);
+    }
+  }
+
+  openGoogleMaps(): void {
+    // Abre Google Maps para que el usuario pueda buscar su dirección
+    // El usuario puede copiar la dirección desde Maps y pegarla en el campo
+    const mapsUrl = 'https://www.google.com/maps/search/?api=1';
+    window.open(mapsUrl, '_blank');
+  }
+
   checkout(): void {
+    // Validar que se haya seleccionado un tipo de entrega
+    if (!this.deliveryType) {
+      // Podrías mostrar un mensaje aquí si quieres
+      return;
+    }
+
+    // Validar que si es envío, tenga dirección
+    if (this.deliveryType === 'envio') {
+      if (!this.deliveryAddress() || this.deliveryAddress().trim() === '') {
+        this.showAddressError.set(true);
+        return;
+      }
+    }
+
     const items = this.cartService.getCartItems()();
     const total = this.cartService.totalPrice();
 
@@ -137,8 +232,17 @@ export class CartComponent {
       message += `   - Cantidad: ${item.quantity}\n\n`;
     });
 
-    message += `Total: $${total.toLocaleString('es-AR')}`;
+    message += `Total: $${total.toLocaleString('es-AR')}\n\n`;
 
+    // Agregar información de entrega
+    if (this.deliveryType === 'retiro') {
+      message += 'Tipo de entrega: Retiro en local\n';
+    } else if (this.deliveryType === 'envio') {
+      message += `Tipo de entrega: Envío a domicilio\n`;
+      message += `Dirección: ${this.deliveryAddress()}\n`;
+    }
+
+    this.showAddressError.set(false);
     window.open(getWhatsAppUrl(message), '_blank');
   }
 }
