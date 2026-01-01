@@ -1,9 +1,6 @@
 ---
-context: true
-priority: high
-scope: project
+alwaysApply: true
 ---
-
 You are an expert in TypeScript, Angular, and scalable web application development. You write functional, maintainable, performant, and accessible code following Angular and TypeScript best practices.
 
 ## TypeScript Best Practices
@@ -59,3 +56,71 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Design services around a single responsibility
 - Use the `providedIn: 'root'` option for singleton services
 - Use the `inject()` function instead of constructor injection
+
+## LM Studio Project Specific Rules
+
+### Stack Tecnológico
+- **Tailwind CSS**: Usar SOLO utility classes para todos los estilos
+- **PrimeNG**: Usar para componentes UI complejos (botones, inputs, modales, etc.)
+- **NO crear archivos CSS personalizados** - Todo debe ser con Tailwind utility classes
+- Usar `[class]` binding en lugar de `ngClass` para clases dinámicas
+
+### Estructura del Proyecto
+- Seguir la estructura: `core/`, `features/`, `shared/`, `layout/`
+- Cada feature debe tener su componente y archivo de rutas
+- Modelos en `core/models/`, servicios en `core/services/`, constantes en `core/constants/`
+- Datos mockeados en `core/data/products.mock.ts`
+- Imágenes en `public/images/products/` (1200x1200px, formato JPG/PNG/WebP) - Se sirven desde la raíz como `images/products/`
+- Feature `cart/` para el carrito de compras
+- Servicio `cart.service.ts` para gestionar el estado del carrito con signals y localStorage
+
+### Modelos de Datos
+```typescript
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  images: string[];
+  sizes: ('S' | 'M' | 'L' | 'XL')[];
+  colors: string[];
+  description: string;
+}
+
+export interface CartItem {
+  productId: string;
+  productName: string;
+  price: number;
+  size: 'S' | 'M' | 'L' | 'XL';
+  color: string;
+  image: string;
+  quantity: number;
+}
+```
+
+### Lógica de Negocio
+- **Carrito de compras**: 
+  - Servicio con signals para gestionar items
+  - Persistencia en localStorage
+  - Validar talle y color antes de agregar
+  - Permitir modificar cantidad y eliminar items
+  - Mismo producto con diferente talle/color = items separados
+- **WhatsApp**: 
+  - Número: phoneNumber a definir en el archivo (en `whatsapp.constants.ts`)
+  - Formato link: `https://wa.me/{{phoneNumber}}?text={{mensajeCodificado}}`
+  - Compra individual: Botón "Comprar ahora" con mensaje del producto
+  - Compra desde carrito: Botón "Finalizar compra" con todos los productos y total
+- **Filtros**: En listado de productos, filtros combinados por talle y color (AND lógico)
+- **Precios**: Formato ARS sin decimales (ej: `$15.000`), usar pipe personalizado
+- **Rutas**: `/`, `/products`, `/product/:id`, `/cart`, `/about`
+- Datos mockeados en `core/data/products.mock.ts` (no hay backend)
+- No implementar autenticación ni pagos online
+
+### Diseño
+- Minimalista, mucho espacio en blanco
+- Paleta neutra + 1 color de acento
+- Cards limpias, foco en imágenes
+- Evitar sobrecarga visual
+- **Responsive**: Mobile-first, breakpoints Tailwind (mobile < 768px, tablet 768-1024px, desktop > 1024px)
+- **Header**: Logo, navegación, icono de carrito con contador
+- **Footer**: Información de contacto, copyright
+- **Imágenes**: Usar `NgOptimizedImage`, tamaño recomendado 1200x1200px (1:1)
