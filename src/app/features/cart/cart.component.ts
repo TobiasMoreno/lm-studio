@@ -11,6 +11,10 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
+import { DialogModule } from 'primeng/dialog';
+
+const DELIVERY_TYPE_STORAGE_KEY = 'lm-studio-delivery-type';
+const DELIVERY_ADDRESS_STORAGE_KEY = 'lm-studio-delivery-address';
 
 @Component({
   selector: 'app-cart',
@@ -24,7 +28,8 @@ import { MessageModule } from 'primeng/message';
     InputNumberModule,
     RadioButtonModule,
     InputTextModule,
-    MessageModule
+    MessageModule,
+    DialogModule
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -136,7 +141,7 @@ import { MessageModule } from 'primeng/message';
                         type="text"
                         pInputText
                         [ngModel]="deliveryAddress()"
-                        (ngModelChange)="deliveryAddress.set($event)"
+                        (ngModelChange)="onAddressChange($event)"
                         placeholder="Ingresá tu dirección completa"
                         class="w-full"
                         [class.border-red-500]="showAddressError() && !deliveryAddress()">
@@ -173,6 +178,48 @@ import { MessageModule } from 'primeng/message';
         }
       </div>
     </div>
+
+    <!-- Modal de confirmación -->
+    <p-dialog 
+      [visible]="showConfirmDialog()"
+      (visibleChange)="showConfirmDialog.set($event)"
+      [modal]="true"
+      [style]="{ width: '90%', maxWidth: '500px' }"
+      [closable]="true"
+      [draggable]="false"
+      [resizable]="false">
+      <ng-template pTemplate="header">
+        <div class="flex items-center gap-2">
+          <i class="pi pi-exclamation-triangle text-2xl"></i>
+          <h3 class="text-xl font-semibold m-0">Confirmar compra</h3>
+        </div>
+      </ng-template>
+      <div class="py-4 px-1">
+        <p class="mb-4">
+          ¿Estás seguro de que querés finalizar la compra? Se abrirá WhatsApp para completar el pedido.
+        </p>
+        <p class="text-sm">
+          El carrito se vaciará después de confirmar.
+        </p>
+      </div>
+      <ng-template pTemplate="footer">
+        <div class="flex gap-3 justify-end">
+          <p-button 
+            label="Cancelar"
+            (onClick)="showConfirmDialog.set(false)"
+            [text]="true"
+            severity="secondary"
+            styleClass="px-6">
+          </p-button>
+          <p-button 
+            label="Confirmar"
+            (onClick)="confirmCheckout()"
+            severity="success"
+            styleClass="px-6">
+          </p-button>
+        </div>
+      </ng-template>
+    </p-dialog>
   `
 })
 export class CartComponent {
@@ -181,6 +228,20 @@ export class CartComponent {
   deliveryType: 'retiro' | 'envio' | null = null;
   deliveryAddress = signal<string>('');
   showAddressError = signal(false);
+  showConfirmDialog = signal(false);
+
+  constructor() {
+    // Cargar datos guardados al inicializar
+    const savedType = this.loadDeliveryType();
+    const savedAddress = this.loadDeliveryAddress();
+    
+    if (savedType) {
+      this.deliveryType = savedType;
+    }
+    if (savedAddress) {
+      this.deliveryAddress.set(savedAddress);
+    }
+  }
 
   updateQuantity(item: any, quantity: number): void {
     this.cartService.updateQuantity(item.productId, item.size, item.color, quantity);
@@ -192,9 +253,17 @@ export class CartComponent {
 
   onDeliveryTypeChange(type: 'retiro' | 'envio'): void {
     this.deliveryType = type;
+    this.saveDeliveryType(type);
+    
     if (type === 'retiro') {
-      this.deliveryAddress.set('');
+      // No limpiar la dirección, solo ocultar el campo
       this.showAddressError.set(false);
+    } else if (type === 'envio') {
+      // Si cambia a envío, cargar la dirección guardada si existe
+      const savedAddress = this.loadDeliveryAddress();
+      if (savedAddress) {
+        this.deliveryAddress.set(savedAddress);
+      }
     }
   }
 
@@ -203,6 +272,12 @@ export class CartComponent {
     // El usuario puede copiar la dirección desde Maps y pegarla en el campo
     const mapsUrl = 'https://www.google.com/maps/search/?api=1';
     window.open(mapsUrl, '_blank');
+  }
+
+  onAddressChange(address: string): void {
+    this.deliveryAddress.set(address);
+    // Guardar en localStorage cada vez que cambia
+    this.saveDeliveryAddress(address);
   }
 
   checkout(): void {
@@ -219,6 +294,21 @@ export class CartComponent {
         return;
       }
     }
+
+    // Guardar la dirección actualizada antes de mostrar el modal
+    if (this.deliveryType === 'envio' && this.deliveryAddress()) {
+      this.saveDeliveryAddress(this.deliveryAddress());
+    }
+    this.saveDeliveryType(this.deliveryType);
+
+    // Mostrar modal de confirmación
+    this.showAddressError.set(false);
+    this.showConfirmDialog.set(true);
+  }
+
+  confirmCheckout(): void {
+    // Cerrar el modal
+    this.showConfirmDialog.set(false);
 
     const items = this.cartService.getCartItems()();
     const total = this.cartService.totalPrice();
@@ -242,7 +332,46 @@ export class CartComponent {
       message += `Dirección: ${this.deliveryAddress()}\n`;
     }
 
-    this.showAddressError.set(false);
+    // Limpiar el carrito del localStorage
+    this.cartService.clearCart();
+
+    // Abrir WhatsApp
     window.open(getWhatsAppUrl(message), '_blank');
+  }
+
+  private loadDeliveryType(): 'retiro' | 'envio' | null {
+    try {
+      const stored = localStorage.getItem(DELIVERY_TYPE_STORAGE_KEY);
+      return stored === 'retiro' || stored === 'envio' ? stored : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private saveDeliveryType(type: 'retiro' | 'envio'): void {
+    try {
+      localStorage.setItem(DELIVERY_TYPE_STORAGE_KEY, type);
+    } catch (error) {
+      console.error('Error saving delivery type to localStorage:', error);
+    }
+  }
+
+  private loadDeliveryAddress(): string {
+    try {
+      const stored = localStorage.getItem(DELIVERY_ADDRESS_STORAGE_KEY);
+      return stored || '';
+    } catch {
+      return '';
+    }
+  }
+
+  private saveDeliveryAddress(address: string): void {
+    try {
+      // Siempre guardar la dirección, incluso si está vacía
+      // Esto permite mantener la dirección guardada aunque se cambie el tipo de entrega
+      localStorage.setItem(DELIVERY_ADDRESS_STORAGE_KEY, address || '');
+    } catch (error) {
+      console.error('Error saving delivery address to localStorage:', error);
+    }
   }
 }
