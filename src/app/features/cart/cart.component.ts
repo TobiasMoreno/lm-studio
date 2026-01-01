@@ -69,9 +69,9 @@ const DELIVERY_ADDRESS_STORAGE_KEY = 'lm-studio-delivery-address';
                     <p-inputNumber 
                       [ngModel]="item.quantity"
                       [min]="1"
+                      [max]="5"
                       [showButtons]="true"
-                      (ngModelChange)="updateQuantity(item, $event)"
-                      styleClass="w-24">
+                      (ngModelChange)="updateQuantity(item, $event)">
                     </p-inputNumber>
                     <button 
                       (click)="removeItem(item)"
