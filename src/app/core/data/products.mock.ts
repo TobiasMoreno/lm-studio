@@ -6,7 +6,7 @@ export const MOCK_PRODUCTS: Product[] = [
     name: 'Remera Abstracta 01',
     price: 15000,
     images: ['images/products/product-001-1.jpg'],
-    sizes: ['S', 'M', 'L', 'XL'],
+    sizes: ['S'],
     colors: ['Negro', 'Blanco'],
     description: 'Remera con diseño abstracto minimalista, perfecta para el día a día. 100% algodón, cómoda y versátil.'
   },

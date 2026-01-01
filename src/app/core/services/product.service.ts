@@ -16,20 +16,46 @@ export class ProductService {
     return this.products.find(product => product.id === id);
   }
 
-  getProductsByFilters(selectedSizes: string[] = [], selectedColors: string[] = []): Product[] {
-    if (selectedSizes.length === 0 && selectedColors.length === 0) {
-      return this.products;
+  getProductsByFilters(
+    selectedSizes: string[] = [], 
+    selectedColors: string[] = [],
+    searchTerm: string = '',
+    minPrice: number | null = null,
+    maxPrice: number | null = null
+  ): Product[] {
+    let filtered = this.products;
+
+    // Búsqueda por nombre
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(product => 
+        product.name.toLowerCase().includes(search)
+      );
     }
 
-    return this.products.filter(product => {
-      const matchesSize = selectedSizes.length === 0 || 
-        selectedSizes.some(size => product.sizes.includes(size as 'S' | 'M' | 'L' | 'XL'));
-      
-      const matchesColor = selectedColors.length === 0 || 
-        selectedColors.some(color => product.colors.includes(color));
-      
-      return matchesSize && matchesColor;
-    });
+    // Filtro por precio
+    if (minPrice !== null) {
+      filtered = filtered.filter(product => product.price >= minPrice);
+    }
+    if (maxPrice !== null) {
+      filtered = filtered.filter(product => product.price <= maxPrice);
+    }
+
+    // Filtro por talle
+    if (selectedSizes.length > 0) {
+      filtered = filtered.filter(product =>
+        selectedSizes.some(size => product.sizes.includes(size as 'S' | 'M' | 'L' | 'XL'))
+      );
+    }
+
+    // Filtro por color
+    if (selectedColors.length > 0) {
+      filtered = filtered.filter(product =>
+        selectedColors.some(color => product.colors.includes(color))
+      );
+    }
+
+    return filtered;
   }
 
   getAllSizes(): string[] {

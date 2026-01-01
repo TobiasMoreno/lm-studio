@@ -67,7 +67,8 @@ import { MessageModule } from 'primeng/message';
                   </label>
                   <p-select 
                     [options]="productData.sizes" 
-                    [(ngModel)]="selectedSize"
+                    [ngModel]="selectedSize()"
+                    (ngModelChange)="selectedSize.set($event)"
                     placeholder="Seleccionar talle"
                     styleClass="w-full">
                   </p-select>
@@ -79,14 +80,38 @@ import { MessageModule } from 'primeng/message';
                   </label>
                   <p-select 
                     [options]="productData.colors" 
-                    [(ngModel)]="selectedColor"
+                    [ngModel]="selectedColor()"
+                    (ngModelChange)="selectedColor.set($event)"
                     placeholder="Seleccionar color"
                     styleClass="w-full">
                   </p-select>
                 </div>
 
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Cantidad (máximo 5 unidades)
+                  </label>
+                  <p-inputNumber 
+                    [ngModel]="quantity()"
+                    (ngModelChange)="quantity.set($event)"
+                    [min]="1"
+                    [max]="5"
+                    [showButtons]="true"
+                    styleClass="w-full">
+                  </p-inputNumber>
+                  <p class="text-xs text-gray-500 mt-1">
+                    Para más de 5 unidades, consultá disponibilidad por WhatsApp
+                  </p>
+                </div>
+
                 @if (showValidationError()) {
                   <p-message severity="warn" text="Por favor selecciona talle y color" />
+                }
+                
+                @if (showQuantityExceededError()) {
+                  <p-message 
+                    severity="info" 
+                    [text]="'Para más de 5 unidades, consultá disponibilidad por WhatsApp. Se abrirá WhatsApp para consultar.'" />
                 }
               </div>
 
@@ -127,12 +152,16 @@ export class ProductDetailComponent {
   private cartService = inject(CartService);
 
   product = signal<Product | null>(null);
-  selectedSize: string | null = null;
-  selectedColor: string | null = null;
+  selectedSize = signal<string | null>(null);
+  selectedColor = signal<string | null>(null);
+  quantity = signal<number>(1);
   showValidationError = signal(false);
+  showQuantityExceededError = signal(false);
+  
+  readonly MAX_QUANTITY = 5;
 
   canAddToCart = computed(() => {
-    return this.selectedSize !== null && this.selectedColor !== null;
+    return this.selectedSize() !== null && this.selectedColor() !== null;
   });
 
   constructor() {
@@ -148,39 +177,87 @@ export class ProductDetailComponent {
   addToCart(): void {
     if (!this.canAddToCart()) {
       this.showValidationError.set(true);
+      this.showQuantityExceededError.set(false);
       return;
     }
 
     const productData = this.product();
-    if (!productData || !this.selectedSize || !this.selectedColor) return;
+    const size = this.selectedSize();
+    const color = this.selectedColor();
+    const qty = this.quantity();
+    
+    if (!productData || !size || !color) return;
+
+    // Si la cantidad es mayor a 5, redirigir a WhatsApp
+    if (qty > this.MAX_QUANTITY) {
+      this.showQuantityExceededError.set(true);
+      this.showValidationError.set(false);
+      this.consultAvailability();
+      return;
+    }
 
     const cartItem: CartItem = {
       productId: productData.id,
       productName: productData.name,
       price: productData.price,
-      size: this.selectedSize as 'S' | 'M' | 'L' | 'XL',
-      color: this.selectedColor,
+      size: size as 'S' | 'M' | 'L' | 'XL',
+      color: color,
       image: productData.images[0],
-      quantity: 1
+      quantity: qty
     };
 
     this.cartService.addItem(cartItem);
     this.showValidationError.set(false);
+    this.showQuantityExceededError.set(false);
   }
 
   buyNow(): void {
     if (!this.canAddToCart()) {
       this.showValidationError.set(true);
+      this.showQuantityExceededError.set(false);
       return;
     }
 
     const productData = this.product();
-    if (!productData || !this.selectedSize || !this.selectedColor) return;
+    const size = this.selectedSize();
+    const color = this.selectedColor();
+    const qty = this.quantity();
+    
+    if (!productData || !size || !color) return;
+
+    // Si la cantidad es mayor a 5, redirigir a WhatsApp para consultar disponibilidad
+    if (qty > this.MAX_QUANTITY) {
+      this.showQuantityExceededError.set(true);
+      this.showValidationError.set(false);
+      this.consultAvailability();
+      return;
+    }
 
     const message = `Hola! Quiero comprar la remera:
 - Modelo: ${productData.name}
-- Talle: ${this.selectedSize}
-- Color: ${this.selectedColor}`;
+- Talle: ${size}
+- Color: ${color}
+- Cantidad: ${qty}`;
+
+    window.open(getWhatsAppUrl(message), '_blank');
+    this.showQuantityExceededError.set(false);
+  }
+
+  private consultAvailability(): void {
+    const productData = this.product();
+    const size = this.selectedSize();
+    const color = this.selectedColor();
+    const qty = this.quantity();
+    
+    if (!productData || !size || !color) return;
+
+    const message = `Hola! Quisiera consultar disponibilidad para:
+- Modelo: ${productData.name}
+- Talle: ${size}
+- Color: ${color}
+- Cantidad: ${qty} unidades
+
+¿Tienen disponibilidad de esta cantidad?`;
 
     window.open(getWhatsAppUrl(message), '_blank');
   }
