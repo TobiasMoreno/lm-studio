@@ -2,6 +2,7 @@ import { inject, Injectable, signal, computed } from '@angular/core';
 import { CartItem } from '../models/cart-item.model';
 
 const CART_STORAGE_KEY = 'lm-studio-cart';
+const MAX_QUANTITY = 5;
 
 @Injectable({
   providedIn: 'root'
@@ -29,6 +30,21 @@ export class CartService {
     return this.cartItems.asReadonly();
   }
 
+  getItemQuantity(productId: string, size: string, color: string): number {
+    const currentItems = this.cartItems();
+    const existingItem = currentItems.find(
+      item => 
+        item.productId === productId &&
+        item.size === size &&
+        item.color === color
+    );
+    return existingItem ? existingItem.quantity : 0;
+  }
+
+  getMaxQuantity(): number {
+    return MAX_QUANTITY;
+  }
+
   addItem(item: CartItem): void {
     const currentItems = this.cartItems();
     
@@ -41,16 +57,25 @@ export class CartService {
     );
 
     if (existingIndex >= 0) {
-      // Si existe, aumentar cantidad
+      // Si existe, aumentar cantidad pero respetar el máximo
       const updatedItems = [...currentItems];
+      const existingItem = updatedItems[existingIndex];
+      const newQuantity = existingItem.quantity + item.quantity;
+      const finalQuantity = Math.min(newQuantity, MAX_QUANTITY);
+      
       updatedItems[existingIndex] = {
-        ...updatedItems[existingIndex],
-        quantity: updatedItems[existingIndex].quantity + item.quantity
+        ...existingItem,
+        quantity: finalQuantity
       };
+      
       this.cartItems.set(updatedItems);
     } else {
-      // Si no existe, agregar nuevo item
-      this.cartItems.set([...currentItems, item]);
+      // Si no existe, agregar nuevo item (también respetar máximo)
+      const newItem = {
+        ...item,
+        quantity: Math.min(item.quantity, MAX_QUANTITY)
+      };
+      this.cartItems.set([...currentItems, newItem]);
     }
 
     this.saveCartToStorage();
@@ -62,10 +87,13 @@ export class CartService {
       return;
     }
 
+    // Respetar el límite máximo
+    const finalQuantity = Math.min(quantity, MAX_QUANTITY);
+
     const currentItems = this.cartItems();
     const updatedItems = currentItems.map(item =>
       item.productId === productId && item.size === size && item.color === color
-        ? { ...item, quantity }
+        ? { ...item, quantity: finalQuantity }
         : item
     );
     

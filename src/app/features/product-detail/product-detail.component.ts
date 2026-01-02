@@ -95,20 +95,38 @@ import { MessageModule } from 'primeng/message';
                     [ngModel]="quantity()"
                     (ngModelChange)="quantity.set($event)"
                     [min]="1"
-                    [max]="5"
+                    [max]="availableQuantity() > 0 ? availableQuantity() : 1"
                     [showButtons]="true"
+                    [disabled]="availableQuantity() === 0"
                     styleClass="w-full">
                   </p-inputNumber>
-                  <p class="text-xs text-gray-500 mt-1">
-                    Para más de 5 unidades, consultá disponibilidad por WhatsApp
-                  </p>
+                  @if (currentCartQuantity() > 0) {
+                    @if (availableQuantity() === 0) {
+                      <p class="text-xs text-red-600 mt-1 font-medium">
+                        Ya tenés 5 unidades en el carrito (máximo permitido).
+                      </p>
+                    } @else {
+                      <p class="text-xs text-orange-600 mt-1">
+                        Ya tenés {{ currentCartQuantity() }} unidad{{ currentCartQuantity() > 1 ? 'es' : '' }} en el carrito.
+                        Podés agregar {{ availableQuantity() }} más.
+                      </p>
+                    }
+                  } @else {
+                    <p class="text-xs text-gray-500 mt-1">
+                      Para más de 5 unidades, consultá disponibilidad por WhatsApp
+                    </p>
+                  }
                 </div>
 
                 @if (showValidationError()) {
                   <p-message severity="warn" text="Por favor selecciona talle y color" />
                 }
                 
-                @if (showQuantityExceededError()) {
+                @if (showQuantityExceededError() && currentCartQuantity() > 0) {
+                  <p-message 
+                    severity="warn" 
+                    [text]="'No se pueden agregar más de ' + availableQuantity() + ' unidades. Ya tenés ' + currentCartQuantity() + ' en el carrito.'" />
+                } @else if (showQuantityExceededError()) {
                   <p-message 
                     severity="info" 
                     [text]="'Para más de 5 unidades, consultá disponibilidad por WhatsApp. Se abrirá WhatsApp para consultar.'" />
@@ -158,10 +176,30 @@ export class ProductDetailComponent {
   showValidationError = signal(false);
   showQuantityExceededError = signal(false);
   
-  readonly MAX_QUANTITY = 5;
+  readonly MAX_QUANTITY = this.cartService.getMaxQuantity();
 
   canAddToCart = computed(() => {
-    return this.selectedSize() !== null && this.selectedColor() !== null;
+    return this.selectedSize() !== null && 
+           this.selectedColor() !== null && 
+           this.availableQuantity() > 0;
+  });
+
+  currentCartQuantity = computed(() => {
+    const productData = this.product();
+    const size = this.selectedSize();
+    const color = this.selectedColor();
+    
+    if (!productData || !size || !color) return 0;
+    
+    return this.cartService.getItemQuantity(productData.id, size, color);
+  });
+
+  availableQuantity = computed(() => {
+    return Math.max(0, this.MAX_QUANTITY - this.currentCartQuantity());
+  });
+
+  canAddSelectedQuantity = computed(() => {
+    return this.quantity() <= this.availableQuantity();
   });
 
   constructor() {
@@ -188,13 +226,15 @@ export class ProductDetailComponent {
     
     if (!productData || !size || !color) return;
 
-    // Si la cantidad es mayor a 5, redirigir a WhatsApp
-    if (qty > this.MAX_QUANTITY) {
+    // Verificar si se puede agregar la cantidad seleccionada
+    if (!this.canAddSelectedQuantity()) {
       this.showQuantityExceededError.set(true);
       this.showValidationError.set(false);
-      this.consultAvailability();
       return;
     }
+
+    // Si la cantidad disponible es menor a la seleccionada, ajustar
+    const quantityToAdd = Math.min(qty, this.availableQuantity());
 
     const cartItem: CartItem = {
       productId: productData.id,
@@ -203,7 +243,7 @@ export class ProductDetailComponent {
       size: size as 'S' | 'M' | 'L' | 'XL',
       color: color,
       image: productData.images[0],
-      quantity: qty
+      quantity: quantityToAdd
     };
 
     this.cartService.addItem(cartItem);
@@ -225,13 +265,15 @@ export class ProductDetailComponent {
     
     if (!productData || !size || !color) return;
 
-    // Si la cantidad es mayor a 5, redirigir a WhatsApp para consultar disponibilidad
-    if (qty > this.MAX_QUANTITY) {
+    // Verificar si se puede agregar la cantidad seleccionada
+    if (!this.canAddSelectedQuantity()) {
       this.showQuantityExceededError.set(true);
       this.showValidationError.set(false);
-      this.consultAvailability();
       return;
     }
+
+    // Ajustar cantidad a la disponible
+    const quantityToAdd = Math.min(qty, this.availableQuantity());
 
     // Agregar al carrito y redirigir al carrito para seleccionar tipo de entrega
     const cartItem: CartItem = {
@@ -241,7 +283,7 @@ export class ProductDetailComponent {
       size: size as 'S' | 'M' | 'L' | 'XL',
       color: color,
       image: productData.images[0],
-      quantity: qty
+      quantity: quantityToAdd
     };
 
     this.cartService.addItem(cartItem);
