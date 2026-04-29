@@ -38,10 +38,13 @@ const DELIVERY_ADDRESS_STORAGE_KEY = 'lm-studio-delivery-address';
         <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-8">Carrito de Compras</h1>
 
         @if (cartService.isEmpty()) {
-          <div class="text-center py-12">
-            <i class="pi pi-shopping-cart text-6xl text-gray-300 mb-4"></i>
-            <p class="text-gray-600 text-lg mb-6">Tu carrito está vacío</p>
-            <p-button label="Ver Productos" [routerLink]="['/products']" />
+          <div class="text-center py-20 max-w-md mx-auto">
+            <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-100 flex items-center justify-center">
+              <i class="pi pi-shopping-cart text-4xl text-gray-400"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Tu carrito está vacío</h2>
+            <p class="text-gray-600 mb-8">Agregá remeras desde el catálogo para empezar a armar tu pedido.</p>
+            <p-button label="Explorar productos" icon="pi pi-arrow-right" iconPos="right" [routerLink]="['/products']" />
           </div>
         } @else {
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -94,8 +97,8 @@ const DELIVERY_ADDRESS_STORAGE_KEY = 'lm-studio-delivery-address';
                     <span>{{ cartService.totalPrice() | currencyArs }}</span>
                   </div>
                   <div class="flex justify-between text-gray-600">
-                    <span>Envio</span>
-                    <span>Consultar</span>
+                    <span>Envío</span>
+                    <span class="text-sm">Se coordina por WhatsApp</span>
                   </div>
                   <div class="border-t border-gray-200 pt-3 flex justify-between text-lg font-bold text-gray-900">
                     <span>Total</span>
@@ -137,36 +140,39 @@ const DELIVERY_ADDRESS_STORAGE_KEY = 'lm-studio-delivery-address';
                       Dirección de envío <span class="text-red-500">*</span>
                     </label>
                     <div class="space-y-2">
-                      <input 
+                      <input
                         type="text"
                         pInputText
                         [ngModel]="deliveryAddress()"
                         (ngModelChange)="onAddressChange($event)"
-                        placeholder="Ingresá tu dirección completa"
+                        placeholder="Calle, número, barrio"
                         class="w-full"
                         [class.border-red-500]="showAddressError() && !deliveryAddress()">
-                      <button
-                        type="button"
-                        (click)="openGoogleMaps()"
-                        class="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <i class="pi pi-map-marker"></i>
-                        <span>Seleccionar ubicación en Google Maps</span>
-                      </button>
-                      @if (showAddressError() && !deliveryAddress) {
+                      <p class="text-xs text-gray-500 flex items-start gap-1.5">
+                        <i class="pi pi-info-circle mt-0.5"></i>
+                        <span>Si no estás seguro de la dirección exacta, podés coordinarla por WhatsApp después.</span>
+                      </p>
+                      @if (showAddressError() && !deliveryAddress()) {
                         <p-message severity="error" text="Por favor ingresá una dirección de envío" />
                       }
                     </div>
                   </div>
                 }
 
-                <p-button 
-                  label="Finalizar compra"
+                <p-button
+                  label="Finalizar compra por WhatsApp"
+                  icon="pi pi-whatsapp"
                   (onClick)="checkout()"
                   severity="success"
-                  styleClass="w-full mb-4">
+                  styleClass="w-full mb-2">
                 </p-button>
 
-                <p-button 
+                <p class="text-xs text-gray-500 text-center mb-4 flex items-center justify-center gap-1">
+                  <i class="pi pi-info-circle"></i>
+                  Tu pedido se confirma vía WhatsApp y se paga por transferencia.
+                </p>
+
+                <p-button
                   label="Seguir comprando"
                   [routerLink]="['/products']"
                   [text]="true"
@@ -265,13 +271,6 @@ export class CartComponent {
         this.deliveryAddress.set(savedAddress);
       }
     }
-  }
-
-  openGoogleMaps(): void {
-    // Abre Google Maps para que el usuario pueda buscar su dirección
-    // El usuario puede copiar la dirección desde Maps y pegarla en el campo
-    const mapsUrl = 'https://www.google.com/maps/search/?api=1';
-    window.open(mapsUrl, '_blank');
   }
 
   onAddressChange(address: string): void {

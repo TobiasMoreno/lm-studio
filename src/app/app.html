@@ -1,7 +1,11 @@
 <div class="min-h-screen bg-white">
+  @if (isNavigating()) {
+    <div class="route-progress-bar" role="progressbar" aria-label="Cargando página"></div>
+  }
   <app-header />
   <main class="min-h-screen bg-white">
     <router-outlet />
   </main>
   <app-footer />
+  <p-toast position="bottom-right" />
 </div>

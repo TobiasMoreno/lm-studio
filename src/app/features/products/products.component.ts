@@ -1,9 +1,7 @@
-import { Component, ChangeDetectionStrategy, signal, computed, inject, HostListener, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ProductService } from '../../core/services/product.service';
-import { Product } from '../../core/models/product.model';
 import { ProductCardComponent } from '../../shared/components/product-card/product-card.component';
-import { MultiSelectModule } from 'primeng/multiselect';
 import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -12,15 +10,17 @@ import { FormsModule } from '@angular/forms';
 @Component({
   selector: 'app-products',
   imports: [
-    CommonModule, 
-    ProductCardComponent, 
-    MultiSelectModule, 
+    CommonModule,
+    ProductCardComponent,
     InputTextModule,
     ButtonModule,
     InputNumberModule,
     FormsModule
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:click)': 'onDocumentClick($event)'
+  },
   template: `
     <div class="min-h-screen py-8 md:py-12">
       <div class="container mx-auto px-4">
@@ -76,29 +76,39 @@ import { FormsModule } from '@angular/forms';
                   <!-- Filtro de talle -->
                   <div>
                     <label class="block text-sm font-medium text-gray-900 mb-3">Talles</label>
-                    <p-multiSelect 
-                      [options]="availableSizes()" 
-                      [(ngModel)]="selectedSizesValue"
-                      (ngModelChange)="onSizesChange($event)"
-                      placeholder="Seleccionar talles"
-                      [showClear]="true"
-                      scrollHeight="200px"
-                      styleClass="w-full">
-                    </p-multiSelect>
+                    <div class="flex flex-wrap gap-2">
+                      @for (size of availableSizes(); track size) {
+                        <button
+                          type="button"
+                          (click)="toggleSize(size)"
+                          [attr.aria-pressed]="selectedSizes().includes(size)"
+                          [class]="selectedSizes().includes(size)
+                            ? 'min-w-12 px-3 py-1.5 border-2 border-black bg-black text-white rounded-md text-sm font-semibold cursor-pointer'
+                            : 'min-w-12 px-3 py-1.5 border-2 border-gray-300 bg-white text-gray-900 rounded-md text-sm font-semibold hover:border-gray-900 cursor-pointer'">
+                          {{ size }}
+                        </button>
+                      }
+                    </div>
                   </div>
 
                   <!-- Filtro de color -->
                   <div>
                     <label class="block text-sm font-medium text-gray-900 mb-3">Colores</label>
-                    <p-multiSelect 
-                      [options]="availableColors()" 
-                      [(ngModel)]="selectedColorsValue"
-                      (ngModelChange)="onColorsChange($event)"
-                      placeholder="Seleccionar colores"
-                      [showClear]="true"
-                      scrollHeight="200px"
-                      styleClass="w-full">
-                    </p-multiSelect>
+                    <div class="flex flex-wrap gap-2">
+                      @for (color of availableColors(); track color) {
+                        <button
+                          type="button"
+                          (click)="toggleColor(color)"
+                          [attr.aria-pressed]="selectedColors().includes(color)"
+                          [class]="selectedColors().includes(color)
+                            ? 'flex items-center gap-2 px-3 py-1.5 border-2 border-black bg-white rounded-md text-sm font-medium text-gray-900 cursor-pointer'
+                            : 'flex items-center gap-2 px-3 py-1.5 border-2 border-gray-300 bg-white rounded-md text-sm font-medium text-gray-900 hover:border-gray-900 cursor-pointer'">
+                          <span class="inline-block w-4 h-4 rounded-full border border-gray-300"
+                                [style.background-color]="getColorHex(color)"></span>
+                          {{ color }}
+                        </button>
+                      }
+                    </div>
                   </div>
                 </div>
               }
@@ -167,6 +177,19 @@ import { FormsModule } from '@angular/forms';
           </div>
         </div>
 
+        <!-- Resumen de filtros activos -->
+        @if (hasActiveFilters() || searchTerm()) {
+          <div class="mb-6 flex flex-wrap items-center gap-2 text-sm">
+            <span class="text-gray-600">Mostrando {{ filteredProducts().length }} resultado{{ filteredProducts().length === 1 ? '' : 's' }}</span>
+            <button
+              type="button"
+              (click)="clearAllFilters()"
+              class="text-gray-900 hover:text-black underline underline-offset-2 cursor-pointer font-medium">
+              Limpiar todo
+            </button>
+          </div>
+        }
+
         <!-- Grid de productos -->
         @if (filteredProducts().length > 0) {
           <!-- Trigger para carga diferida -->
@@ -185,8 +208,18 @@ import { FormsModule } from '@angular/forms';
             </div>
           }
         } @else {
-          <div class="text-center py-12">
-            <p class="text-gray-600 text-lg">No se encontraron productos con los filtros seleccionados.</p>
+          <div class="text-center py-16">
+            <i class="pi pi-search text-5xl text-gray-300 mb-4 block"></i>
+            <p class="text-gray-700 text-lg font-medium mb-2">No se encontraron productos</p>
+            <p class="text-gray-500 mb-6">Probá ajustando los filtros o limpiándolos para ver todos los productos.</p>
+            @if (hasActiveFilters() || searchTerm()) {
+              <p-button
+                label="Limpiar filtros"
+                icon="pi pi-filter-slash"
+                (onClick)="clearAllFilters()"
+                [outlined]="true">
+              </p-button>
+            }
           </div>
         }
       </div>
@@ -195,7 +228,6 @@ import { FormsModule } from '@angular/forms';
 })
 export class ProductsComponent {
   private productService = inject(ProductService);
-  private cdr = inject(ChangeDetectorRef);
 
   searchTerm = signal<string>('');
   selectedSizes = signal<string[]>([]);
@@ -205,23 +237,13 @@ export class ProductsComponent {
   filterDropdownOpen = false;
   sizesColorsDropdownOpen = false;
 
-  // Valores para ngModel (necesarios para PrimeNG MultiSelect)
-  selectedSizesValue: string[] = [];
-  selectedColorsValue: string[] = [];
-
   availableSizes = signal<string[]>(this.productService.getAllSizes());
   availableColors = signal<string[]>(this.productService.getAllColors());
 
-  constructor() {
-    // Sincronizar valores iniciales
-    this.selectedSizesValue = this.selectedSizes();
-    this.selectedColorsValue = this.selectedColors();
-  }
-
   hasActiveFilters = computed(() => {
-    return this.selectedSizes().length > 0 || 
-           this.selectedColors().length > 0 || 
-           this.minPrice() !== null || 
+    return this.selectedSizes().length > 0 ||
+           this.selectedColors().length > 0 ||
+           this.minPrice() !== null ||
            this.maxPrice() !== null;
   });
 
@@ -250,30 +272,43 @@ export class ProductsComponent {
     );
   });
 
-  onSizesChange(value: string[]): void {
-    this.selectedSizesValue = value || [];
-    this.selectedSizes.set(this.selectedSizesValue);
-    this.cdr.markForCheck();
+  toggleSize(size: string): void {
+    const current = this.selectedSizes();
+    this.selectedSizes.set(
+      current.includes(size) ? current.filter(s => s !== size) : [...current, size]
+    );
   }
 
-  onColorsChange(value: string[]): void {
-    this.selectedColorsValue = value || [];
-    this.selectedColors.set(this.selectedColorsValue);
-    this.cdr.markForCheck();
+  toggleColor(color: string): void {
+    const current = this.selectedColors();
+    this.selectedColors.set(
+      current.includes(color) ? current.filter(c => c !== color) : [...current, color]
+    );
+  }
+
+  getColorHex(color: string): string {
+    const map: Record<string, string> = {
+      'negro': '#111111',
+      'blanco': '#ffffff',
+      'gris': '#9ca3af',
+      'beige': '#e8d9b9',
+      'azul marino': '#1e2a4a',
+      'rojo': '#dc2626',
+      'verde': '#16a34a',
+      'azul': '#2563eb',
+      'amarillo': '#eab308'
+    };
+    return map[color.toLowerCase()] ?? '#cccccc';
   }
 
   clearSizesColors(): void {
-    this.selectedSizesValue = [];
-    this.selectedColorsValue = [];
     this.selectedSizes.set([]);
     this.selectedColors.set([]);
-    this.cdr.markForCheck();
   }
 
   clearPriceFilter(): void {
     this.minPrice.set(null);
     this.maxPrice.set(null);
-    this.cdr.markForCheck();
   }
 
   clearFilters(): void {
@@ -281,7 +316,12 @@ export class ProductsComponent {
     this.clearPriceFilter();
   }
 
-  @HostListener('document:click', ['$event'])
+  clearAllFilters(): void {
+    this.searchTerm.set('');
+    this.clearSizesColors();
+    this.clearPriceFilter();
+  }
+
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (!target.closest('.filter-dropdown-container')) {

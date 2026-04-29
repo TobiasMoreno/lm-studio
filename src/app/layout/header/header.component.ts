@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, effect } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { CartService } from '../../core/services/cart.service';
@@ -14,8 +14,14 @@ import { ButtonModule } from 'primeng/button';
       <nav class="container mx-auto px-4 py-4">
         <div class="flex items-center justify-between">
           <!-- Logo -->
-          <a routerLink="/" class="text-2xl font-bold text-gray-900 hover:text-gray-700 transition-colors">
-            LM Studio
+          <a routerLink="/"
+             class="flex items-center gap-2 text-gray-900 hover:opacity-80 transition-opacity"
+             aria-label="LM Studio - Inicio">
+            <span aria-hidden="true"
+                  class="inline-flex items-center justify-center w-9 h-9 bg-black text-white rounded-md font-display font-bold text-sm tracking-tight">
+              LM
+            </span>
+            <span class="font-display font-bold text-xl tracking-tight">Studio</span>
           </a>
 
           <!-- Desktop Navigation -->
@@ -44,9 +50,10 @@ import { ButtonModule } from 'primeng/button';
                       class="p-2 text-gray-600 hover:text-gray-900 transition-colors">
               </button>
               @if (cartService.totalItems() > 0) {
-                <span pBadge 
-                      [value]="cartService.totalItems()" 
+                <span pBadge
+                      [value]="cartService.totalItems()"
                       severity="danger"
+                      [class.cart-badge-pop]="badgeAnimating()"
                       class="absolute -top-1 -right-1">
                 </span>
               }
@@ -105,4 +112,21 @@ import { ButtonModule } from 'primeng/button';
 export class HeaderComponent {
   cartService = inject(CartService);
   mobileMenuOpen = false;
+
+  badgeAnimating = signal(false);
+  private previousCount = this.cartService.totalItems();
+  private animationTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  constructor() {
+    effect(() => {
+      const count = this.cartService.totalItems();
+      if (count > this.previousCount) {
+        this.badgeAnimating.set(false);
+        if (this.animationTimeout) clearTimeout(this.animationTimeout);
+        queueMicrotask(() => this.badgeAnimating.set(true));
+        this.animationTimeout = setTimeout(() => this.badgeAnimating.set(false), 350);
+      }
+      this.previousCount = count;
+    });
+  }
 }

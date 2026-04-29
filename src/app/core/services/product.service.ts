@@ -1,12 +1,12 @@
-import { inject, Injectable } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { Product } from '../models/product.model';
-import { MOCK_PRODUCTS } from '../data/products.mock';
+import { PRODUCTS } from '../data/products';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ProductService {
-  private products = MOCK_PRODUCTS;
+  private products = PRODUCTS;
 
   getAllProducts(): Product[] {
     return this.products;
@@ -72,5 +72,9 @@ export class ProductService {
       product.colors.forEach(color => colors.add(color));
     });
     return Array.from(colors).sort();
+  }
+
+  getRelatedProducts(productId: string, limit = 4): Product[] {
+    return this.products.filter(p => p.id !== productId).slice(0, limit);
   }
 }

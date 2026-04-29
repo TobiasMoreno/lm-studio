@@ -13,7 +13,13 @@ import { getWhatsAppUrl, WHATSAPP_NUMBER } from '../../core/constants/whatsapp.c
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
           <!-- Brand -->
           <div>
-            <h3 class="text-xl font-bold text-gray-900 mb-4">LM Studio</h3>
+            <div class="flex items-center gap-2 mb-4">
+              <span aria-hidden="true"
+                    class="inline-flex items-center justify-center w-9 h-9 bg-black text-white rounded-md font-display font-bold text-sm tracking-tight">
+                LM
+              </span>
+              <span class="font-display font-bold text-xl text-gray-900 tracking-tight">Studio</span>
+            </div>
             <p class="text-gray-600 text-sm">
               Remeras artísticas y urbanas diseñadas con pasión.
             </p>

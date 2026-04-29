@@ -5,12 +5,20 @@ import { getWhatsAppUrl } from '../../core/constants/whatsapp.constants';
   selector: 'app-about',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="min-h-screen py-12 md:py-20">
-      <div class="container mx-auto px-4">
-        <div class="max-w-3xl mx-auto">
-          <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-8 text-center">
-            Sobre el Artista
+    <div class="min-h-screen">
+      <section class="bg-black text-white py-16 md:py-24">
+        <div class="container mx-auto px-4 text-center">
+          <span class="inline-block text-xs uppercase tracking-[0.3em] text-brand-accent font-semibold mb-4">
+            Detrás de la marca
+          </span>
+          <h1 class="text-4xl md:text-6xl font-bold leading-tight">
+            Sobre el <span class="text-brand-accent">artista</span>
           </h1>
+        </div>
+      </section>
+
+      <div class="container mx-auto px-4 py-12 md:py-16">
+        <div class="max-w-3xl mx-auto">
           
           <div class="prose prose-lg max-w-none">
             <p class="text-gray-600 text-lg leading-relaxed mb-6">
