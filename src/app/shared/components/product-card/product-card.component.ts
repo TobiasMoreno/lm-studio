@@ -11,7 +11,7 @@ import { WishlistService } from '../../../core/services/wishlist.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a [routerLink]="['/product', product().id]"
-       class="block group bg-white rounded-lg overflow-hidden border border-gray-200 hover:border-gray-900 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 relative">
+       class="block group bg-white rounded-lg overflow-hidden border border-gray-200 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 relative">
       <button
         type="button"
         (click)="toggleWishlist($event)"
